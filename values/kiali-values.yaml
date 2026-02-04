@@ -16,13 +16,13 @@ deployment:
 external_services:
   # Prometheus connection
   prometheus:
-    url: "http://prometheus-server.istio-system:80"
+    url: "http://prometheus-server.observability:9090"
 
   # Grafana integration
   grafana:
     enabled: true
-    in_cluster_url: "http://grafana.istio-system:80"
-    url: "http://grafana.istio-system:80"
+    in_cluster_url: "http://grafana.observability:3000"
+    url: "http://grafana.observability:3000"
 
   # Istio configuration
   istio:

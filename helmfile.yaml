@@ -68,7 +68,8 @@ releases:
   # Prometheus - Metrics collection
   # ==========================================
   - name: prometheus
-    namespace: istio-system
+    namespace: observability
+    createNamespace: true
     chart: prometheus-community/prometheus
     version: 25.27.0
     wait: true
@@ -80,11 +81,11 @@ releases:
   # Grafana - Metrics visualization
   # ==========================================
   - name: grafana
-    namespace: istio-system
+    namespace: observability
     chart: grafana/grafana
     version: 8.8.3
     needs:
-      - istio-system/prometheus
+      - observability/prometheus
     wait: true
     timeout: 600
     values:
@@ -94,13 +95,13 @@ releases:
   # Kiali - Service mesh observability
   # ==========================================
   - name: kiali-server
-    namespace: istio-system
+    namespace: observability
     chart: kiali/kiali-server
     version: 2.19.0
     needs:
       - istio-system/istiod
-      - istio-system/prometheus
-      - istio-system/grafana
+      - observability/prometheus
+      - observability/grafana
     wait: true
     timeout: 600
     values:
@@ -118,4 +119,14 @@ releases:
     timeout: 300
     values:
       - chart/values.yaml
+    hooks:
+      - events: ["presync"]
+        showlogs: true
+        command: "kubectl"
+        args:
+          - "label"
+          - "namespace"
+          - "default"
+          - "istio-injection=enabled"
+          - "--overwrite"
 

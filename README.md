@@ -27,25 +27,23 @@ Istio provides two approaches to implement sticky sessions:
 
 ## 📋 Prerequisites
 
-### Option A: Quick Setup with Helmfile (Recommended for Local Testing)
+### Option A: Fully Automated Setup with Helmfile (Recommended) ⚡
 
-If you want to quickly set up everything in your local machine, use the helmfile:
+Everything is **fully automated** - no manual steps required:
 
 ```bash
-# Install all components (Istio, Prometheus, Grafana)
-helmfile sync
-
-# Enable sidecar injection
-kubectl label namespace default istio-injection=enabled --overwrite
-
-# Deploy the test application
-kubectl apply -f 01-deployment.yml
-kubectl apply -f 02-service.yml
-kubectl apply -f 03-gateway.yml
-kubectl apply -f 04-virtualservice.yml
+# Deploy everything with a single command
+helmfile apply
 ```
 
-📖 **For detailed installation instructions, see [INSTALL.md](INSTALL.md)**
+**What gets deployed automatically:**
+- ✅ Istio stack (base, istiod, ingress gateway)
+- ✅ Prometheus and Grafana for monitoring
+- ✅ Kiali for service mesh observability
+- ✅ The sticky session POC application
+- ✅ **Automatic sidecar injection** (via helmfile hook)
+
+📖 **For detailed instructions, see [DESPLIEGUE_AUTOMATIZADO.md](DESPLIEGUE_AUTOMATIZADO.md)**
 
 ### Option B: Manual Setup (Existing Cluster)
 
@@ -62,19 +60,9 @@ kubectl label namespace default istio-injection=enabled --overwrite
 
 ## 🚀 Quick Start
 
-### Common Resources (Both Approaches)
+### Get the Gateway URL
 
-Deploy the base resources that both approaches need:
-
-```bash
-# Apply base manifests
-kubectl apply -f 01-deployment.yml
-kubectl apply -f 02-service.yml
-kubectl apply -f 03-gateway.yml
-kubectl apply -f 04-virtualservice.yml
-```
-
-Get the Gateway URL:
+After deploying with `helmfile sync`, get the Istio Ingress Gateway URL to test the application:
 
 ```bash
 export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -90,13 +78,24 @@ echo "Test URL: http://$GATEWAY_URL"
 
 ### Configuration
 
-Apply the DestinationRule with consistent hash:
+The DestinationRule with consistent hash is already included in the Helm chart. To enable it, update your chart values:
 
-```bash
-kubectl apply -f 05-destinationrule.yml
+**Edit `chart/values.yaml`:**
+```yaml
+destinationRule:
+  enabled: true  # Enable DestinationRule
+  loadBalancer:
+    consistentHash:
+      httpHeaderName: "x-session-id"
 ```
 
-**Content of 05-destinationrule.yml:**
+Then apply the changes:
+
+```bash
+helmfile apply
+```
+
+**The DestinationRule configuration (`chart/templates/destinationrule.yaml`):**
 ```yaml
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -242,8 +241,22 @@ kubectl exec -n istio-system $GATEWAY_POD -- curl -s http://localhost:15000/conf
 
 #### Step 3: Add the label to your Service
 
-Edit `02-service.yml` and add the label:
+The Service is already configured in the Helm chart. To enable stateful sessions, update the chart values:
 
+**Edit `chart/values.yaml`:**
+```yaml
+service:
+  labels:
+    istio.io/persistent-session-header: x-session-id  # Enable stateful sessions
+```
+
+Then apply the changes:
+
+```bash
+helmfile apply
+```
+
+**Service configuration is in `chart/templates/service.yaml`:**
 ```yaml
 apiVersion: v1
 kind: Service
@@ -252,7 +265,9 @@ metadata:
   namespace: default
   labels:
     app: sticky-session-app
-    istio.io/persistent-session-header: x-session-id  # <-- Add this
+    {{- if .Values.service.labels }}
+    {{- toYaml .Values.service.labels | nindent 4 }}
+    {{- end }}
 spec:
   ports:
   - port: 5678
@@ -262,12 +277,6 @@ spec:
   selector:
     app: sticky-session-app
   type: ClusterIP
-```
-
-Apply the changes:
-
-```bash
-kubectl apply -f 02-service.yml
 ```
 
 ### How It Works
@@ -364,10 +373,20 @@ spec:
         http2MaxRequests: 1024
 ```
 
-Apply the DestinationRule:
+This configuration is already included in the Helm chart. To enable it, update your chart values:
+
+**Edit `chart/values.yaml`:**
+```yaml
+destinationRule:
+  enabled: true
+  loadBalancer:
+    simple: LEAST_REQUEST  # New sessions go to least loaded pods
+```
+
+Then apply the changes:
 
 ```bash
-kubectl apply -f 05-destinationrule.yml
+helmfile apply
 ```
 
 **How it works:**
@@ -443,6 +462,87 @@ metadata:
 ---
 
 ## 📊 Monitoring & Troubleshooting
+
+### Observability with Kiali
+
+Kiali is a powerful observability console for Istio that provides real-time visualization of your service mesh, including traffic flow, health status, and configuration validation.
+
+#### Accessing Kiali
+
+After deploying with `helmfile sync`, access the Kiali dashboard:
+
+```bash
+# Port-forward to Kiali service
+kubectl port-forward -n istio-system svc/kiali 20001:20001
+
+# Open in your browser
+# http://localhost:20001/kiali
+```
+
+#### Using Kiali to Verify Sticky Sessions
+
+Kiali is extremely useful for visualizing and validating sticky session behavior:
+
+**1. Service Graph Visualization**
+- Navigate to **Graph** → Select `default` namespace
+- Send test traffic to your application
+- View real-time traffic flow between pods
+- Color coding shows health status and request rates
+
+**2. Verify Traffic Distribution**
+```bash
+# Generate test traffic with session IDs
+for i in {1..100}; do
+  curl -H "x-session-id: session-$((i % 10))" http://$GATEWAY_URL/ > /dev/null 2>&1
+done
+```
+
+Then in Kiali:
+- **Graph** → Enable "Traffic Distribution" display option
+- You should see traffic concentrated on specific pods (for sticky sessions)
+- Compare with traffic without session headers (should be evenly distributed)
+
+**3. Validate Configuration**
+- Navigate to **Istio Config** → `default` namespace
+- Check for validation warnings on:
+  - `DestinationRule` (sticky-session-dr)
+  - `VirtualService` (sticky-session-vs)
+  - `Gateway` (sticky-session-gateway)
+  - `Service` (sticky-session-app)
+- Green checkmarks indicate valid configuration
+
+**4. Workload Details**
+- Navigate to **Workloads** → `sticky-session-app`
+- View per-pod metrics:
+  - Request rate
+  - Error rate
+  - Response times
+- Compare metrics across pods to identify load imbalances
+
+**5. Traffic Metrics**
+- Navigate to **Services** → `sticky-session-app`
+- View the **Inbound Metrics** tab
+- Useful charts:
+  - Request volume (should show uneven distribution with sticky sessions)
+  - Request duration (P50, P95, P99)
+  - Request size / Response size
+
+#### Kiali Tips for Troubleshooting
+
+**Issue: Session stickiness not working**
+1. Check **Graph** → Should show traffic concentrated to specific pods
+2. If traffic is evenly distributed, check **Istio Config** for errors
+3. Verify `DestinationRule` is present and valid
+
+**Issue: High error rates**
+1. Navigate to **Workloads** → Check error rate per pod
+2. Click on pod name → View logs
+3. Check **Inbound Metrics** for HTTP status codes
+
+**Issue: Load imbalance after scaling**
+1. Use **Graph** → Enable "Request percentage" labels
+2. Compare request distribution across old vs new pods
+3. Check **Metrics** tab for active connection counts
 
 ### Monitoring Load Balancing with Prometheus/Grafana
 
@@ -624,13 +724,17 @@ istioctl proxy-config cluster $POD_NAME -n default -o json | jq '.[] | select(.n
 
 2. **DestinationRule not applied:**
    ```bash
-   # Re-apply the DestinationRule
-   kubectl apply -f 05-destinationrule.yml
+   # Verify DestinationRule is enabled in chart/values.yaml
+   grep -A 3 "destinationRule:" chart/values.yaml
+
+   # Re-apply with Helmfile
+   helmfile apply
 
    # Wait for Envoy to sync (5-10 seconds)
    sleep 10
 
    # Verify it's applied
+   kubectl get destinationrule sticky-session-dr -n default
    istioctl proxy-config cluster $POD_NAME -n default | grep sticky-session-app
    ```
 
@@ -878,12 +982,30 @@ istioctl proxy-config log $POD_NAME --level upstream:debug
 
 ## 🧹 Clean-up
 
+### Remove the entire stack (all components)
+
 ```bash
-kubectl delete -f 05-destinationrule.yml
-kubectl delete -f 04-virtualservice.yml
-kubectl delete -f 03-gateway.yml
-kubectl delete -f 02-service.yml
-kubectl delete -f 01-deployment.yml
+# Remove all Helmfile releases (Istio, Prometheus, Grafana, Kiali, and the app)
+helmfile destroy
+```
+
+### Remove only the sticky session app
+
+```bash
+# Remove only the sticky session application, keeping Istio infrastructure
+helm uninstall istio-sticky-session -n default
+```
+
+### Remove specific components
+
+```bash
+# Remove DestinationRule only (disable sticky sessions)
+# Edit chart/values.yaml and set destinationRule.enabled: false
+# Then apply:
+helmfile apply
+
+# Or use kubectl directly
+kubectl delete destinationrule sticky-session-dr -n default
 ```
 
 ---
