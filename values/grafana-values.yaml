@@ -1,0 +1,69 @@
+# Grafana configuration for local testing
+
+# Admin credentials
+adminUser: admin
+adminPassword: admin
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+# Resource limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Persistence disabled for local testing
+persistence:
+  enabled: false
+
+# Datasources configuration
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server:9090
+      access: proxy
+      isDefault: true
+      editable: true
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'istio'
+      orgId: 1
+      folder: 'Istio'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/istio
+
+# Pre-load Istio dashboards
+dashboardsConfigMaps:
+  istio: "istio-grafana-dashboards"
+
+# Grafana configuration
+grafana.ini:
+  server:
+    root_url: http://localhost:3000
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer
+  security:
+    allow_embedding: true
+
+# Plugins to install
+plugins:
+  - grafana-piechart-panel
+  - grafana-clock-panel
+

@@ -1,0 +1,22 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ .Values.gateway.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "istio-sticky-session.labels" . | nindent 4 }}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: {{ .Values.gateway.port }}
+      name: http
+      protocol: HTTP
+    hosts:
+    {{- range .Values.gateway.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+{{- end }}
+

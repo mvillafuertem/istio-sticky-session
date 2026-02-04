@@ -1,0 +1,121 @@
+repositories:
+  # Istio official Helm repository
+  - name: istio
+    url: https://istio-release.storage.googleapis.com/charts
+
+  # Prometheus community charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+  # Grafana official charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+
+  # Kiali official charts
+  - name: kiali
+    url: https://kiali.org/helm-charts
+
+# Helmfile environment configuration
+environments:
+  default:
+    values:
+      - {}
+
+---
+
+releases:
+  # ==========================================
+  # Istio Base - CRDs and cluster-wide resources
+  # ==========================================
+  - name: istio-base
+    namespace: istio-system
+    createNamespace: true
+    chart: istio/base
+    version: 1.27.3
+    wait: true
+    timeout: 600
+
+  # ==========================================
+  # Istio Control Plane (istiod)
+  # ==========================================
+  - name: istiod
+    namespace: istio-system
+    chart: istio/istiod
+    version: 1.27.3
+    needs:
+      - istio-system/istio-base
+    wait: true
+    timeout: 600
+    values:
+      - values/istiod-values.yaml
+
+# ==========================================
+  # Istio Ingress Gateway
+  # ==========================================
+  - name: istio-ingressgateway
+    namespace: istio-system
+    chart: istio/gateway
+    version: 1.27.3
+    needs:
+      - istio-system/istiod
+    wait: true
+    timeout: 600
+    # Skip schema validation due to Istio chart issue with _internal_defaults_do_not_set
+    disableOpenAPIValidation: true
+    skipSchemaValidation: true
+
+  # ==========================================
+  # Prometheus - Metrics collection
+  # ==========================================
+  - name: prometheus
+    namespace: istio-system
+    chart: prometheus-community/prometheus
+    version: 25.27.0
+    wait: true
+    timeout: 600
+    values:
+      - values/prometheus-values.yaml
+
+  # ==========================================
+  # Grafana - Metrics visualization
+  # ==========================================
+  - name: grafana
+    namespace: istio-system
+    chart: grafana/grafana
+    version: 8.8.3
+    needs:
+      - istio-system/prometheus
+    wait: true
+    timeout: 600
+    values:
+      - values/grafana-values.yaml
+
+  # ==========================================
+  # Kiali - Service mesh observability
+  # ==========================================
+  - name: kiali-server
+    namespace: istio-system
+    chart: kiali/kiali-server
+    version: 2.19.0
+    needs:
+      - istio-system/istiod
+      - istio-system/prometheus
+      - istio-system/grafana
+    wait: true
+    timeout: 600
+    values:
+      - values/kiali-values.yaml
+
+  # ==========================================
+  # Istio Sticky Session - POC Application
+  # ==========================================
+  - name: istio-sticky-session
+    namespace: default
+    chart: ./chart
+    needs:
+      - istio-system/istiod
+    wait: true
+    timeout: 300
+    values:
+      - chart/values.yaml
+

@@ -1,0 +1,29 @@
+# Helmfile
+helmfile.lock
+*.lock
+
+# Helm
+charts/
+*.tgz
+
+# Kubernetes
+*.kubeconfig
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+

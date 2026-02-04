@@ -1,0 +1,24 @@
+apiVersion: v2
+name: istio-sticky-session
+description: POC for Istio sticky sessions (Consistent Hash vs Stateful Sessions)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - istio
+  - sticky-sessions
+  - load-balancing
+  - consistent-hash
+  - stateful-sessions
+
+maintainers:
+  - name: POC Team
+    email: team@example.com
+
+home: https://github.com/your-repo/istio-sticky-session
+sources:
+  - https://github.com/your-repo/istio-sticky-session
+
+icon: https://istio.io/latest/img/istio-whitelogo-bluebackground-framed.svg
+

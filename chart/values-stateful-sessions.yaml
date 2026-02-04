@@ -1,0 +1,40 @@
+# Values for Stateful Sessions configuration
+# Use with: helm install sticky-session ./chart -f chart/values-stateful-sessions.yaml
+
+# IMPORTANT: Stateful Sessions requires enabling the feature flag in istiod
+# Run before installing:
+# kubectl set env deploy/istiod -n istio-system PILOT_ENABLE_PERSISTENT_SESSION_FILTER=true
+
+replicaCount: 3
+
+loadBalancing:
+  type: "statefulSessions"
+
+  consistentHash:
+    enabled: false
+
+  statefulSessions:
+    enabled: true
+    header: "x-session-id"
+
+  # Optional: Add load balancing for NEW sessions
+  simple: "LEAST_REQUEST"
+
+# Enable connection pool limits
+connectionPool:
+  enabled: true
+  tcp:
+    maxConnections: 100
+  http:
+    http1MaxPendingRequests: 1024
+    http2MaxRequests: 1000
+
+# Enable outlier detection
+outlierDetection:
+  enabled: true
+  consecutive5xxErrors: 3
+  interval: 5s
+  baseEjectionTime: 30s
+  maxEjectionPercent: 20
+  minHealthPercent: 50
+

@@ -1,0 +1,54 @@
+{{- if or .Values.loadBalancing.consistentHash.enabled .Values.loadBalancing.statefulSessions.enabled .Values.connectionPool.enabled .Values.outlierDetection.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "istio-sticky-session.fullname" . }}-dr
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "istio-sticky-session.labels" . | nindent 4 }}
+spec:
+  host: {{ include "istio-sticky-session.fullname" . }}
+  trafficPolicy:
+    {{- if or .Values.loadBalancing.consistentHash.enabled .Values.loadBalancing.simple }}
+    loadBalancer:
+      {{- if and .Values.loadBalancing.consistentHash.enabled (eq .Values.loadBalancing.type "consistentHash") }}
+      consistentHash:
+        {{- if .Values.loadBalancing.consistentHash.httpHeaderName }}
+        httpHeaderName: {{ .Values.loadBalancing.consistentHash.httpHeaderName }}
+        {{- else if .Values.loadBalancing.consistentHash.httpCookie }}
+        httpCookie:
+          name: {{ .Values.loadBalancing.consistentHash.httpCookie.name }}
+          {{- if .Values.loadBalancing.consistentHash.httpCookie.ttl }}
+          ttl: {{ .Values.loadBalancing.consistentHash.httpCookie.ttl }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.loadBalancing.consistentHash.minimumRingSize }}
+        minimumRingSize: {{ .Values.loadBalancing.consistentHash.minimumRingSize }}
+        {{- end }}
+      {{- else if .Values.loadBalancing.simple }}
+      simple: {{ .Values.loadBalancing.simple }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.connectionPool.enabled }}
+    connectionPool:
+      {{- if .Values.connectionPool.tcp }}
+      tcp:
+        {{- toYaml .Values.connectionPool.tcp | nindent 8 }}
+      {{- end }}
+      {{- if .Values.connectionPool.http }}
+      http:
+        {{- toYaml .Values.connectionPool.http | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.outlierDetection.enabled }}
+    outlierDetection:
+      consecutive5xxErrors: {{ .Values.outlierDetection.consecutive5xxErrors }}
+      interval: {{ .Values.outlierDetection.interval }}
+      baseEjectionTime: {{ .Values.outlierDetection.baseEjectionTime }}
+      maxEjectionPercent: {{ .Values.outlierDetection.maxEjectionPercent }}
+      {{- if .Values.outlierDetection.minHealthPercent }}
+      minHealthPercent: {{ .Values.outlierDetection.minHealthPercent }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+

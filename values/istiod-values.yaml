@@ -1,0 +1,40 @@
+# Istiod (Istio Control Plane) configuration
+
+# Enable the stateful session filter (required for Option 2)
+pilot:
+  env:
+    PILOT_ENABLE_PERSISTENT_SESSION_FILTER: "true"
+
+# Resource limits for local testing
+global:
+  proxy:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# Enable telemetry for Prometheus
+telemetry:
+  enabled: true
+  v2:
+    enabled: true
+    prometheus:
+      enabled: true
+
+# Mesh configuration
+meshConfig:
+  # Enable access logging for debugging
+  accessLogFile: /dev/stdout
+  accessLogEncoding: JSON
+
+  # Default metrics
+  enablePrometheusMerge: true
+
+  # Tracing configuration (optional)
+  defaultConfig:
+    tracing:
+      sampling: 100.0
+

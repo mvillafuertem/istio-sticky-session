@@ -1,0 +1,23 @@
+{{- if .Values.virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ .Values.virtualService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "istio-sticky-session.labels" . | nindent 4 }}
+spec:
+  hosts:
+  {{- range .Values.virtualService.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  gateways:
+  - {{ .Values.gateway.name }}
+  http:
+  - route:
+    - destination:
+        host: {{ include "istio-sticky-session.fullname" . }}
+        port:
+          number: {{ .Values.service.port }}
+{{- end }}
+

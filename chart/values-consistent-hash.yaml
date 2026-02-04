@@ -1,0 +1,37 @@
+# Values for Consistent Hash configuration
+# Use with: helm install sticky-session ./chart -f chart/values-consistent-hash.yaml
+
+replicaCount: 3
+
+loadBalancing:
+  type: "consistentHash"
+
+  consistentHash:
+    enabled: true
+    httpHeaderName: "x-session-id"
+    minimumRingSize: 1024
+
+  statefulSessions:
+    enabled: false
+
+  # Optional: Add load balancing for new sessions
+  simple: "LEAST_REQUEST"
+
+# Enable connection pool limits
+connectionPool:
+  enabled: true
+  tcp:
+    maxConnections: 100
+  http:
+    http1MaxPendingRequests: 1024
+    http2MaxRequests: 1000
+
+# Enable outlier detection
+outlierDetection:
+  enabled: true
+  consecutive5xxErrors: 5
+  interval: 5s
+  baseEjectionTime: 30s
+  maxEjectionPercent: 10
+  minHealthPercent: 50
+

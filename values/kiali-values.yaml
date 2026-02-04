@@ -1,0 +1,62 @@
+# Kiali Server Configuration
+# Observability console for Istio service mesh
+
+# Authentication configuration
+auth:
+  strategy: "anonymous"  # For POC purposes - use token/openid in production
+
+# Deployment configuration
+deployment:
+  accessible_namespaces:
+    - '**'  # Monitor all namespaces
+  ingress:
+    enabled: false  # Access via port-forward or configure if needed
+
+# External services configuration
+external_services:
+  # Prometheus connection
+  prometheus:
+    url: "http://prometheus-server.istio-system:80"
+
+  # Grafana integration
+  grafana:
+    enabled: true
+    in_cluster_url: "http://grafana.istio-system:80"
+    url: "http://grafana.istio-system:80"
+
+  # Istio configuration
+  istio:
+    config_map_name: "istio"
+    istio_sidecar_injector_config_map_name: "istio-sidecar-injector"
+    istiod_deployment_name: "istiod"
+    url_service_version: "http://istiod.istio-system:15014/version"
+
+# Server configuration
+server:
+  web_root: "/kiali"
+
+# Kiali CR configuration
+cr:
+  create: true
+  namespace: istio-system
+  spec:
+    auth:
+      strategy: "anonymous"
+
+    deployment:
+      accessible_namespaces:
+        - '**'
+
+    external_services:
+      prometheus:
+        url: "http://prometheus-server.istio-system:80"
+      grafana:
+        enabled: true
+        in_cluster_url: "http://grafana.istio-system:80"
+        url: "http://grafana.istio-system:80"
+      istio:
+        config_map_name: "istio"
+        istio_sidecar_injector_config_map_name: "istio-sidecar-injector"
+        istiod_deployment_name: "istiod"
+        url_service_version: "http://istiod.istio-system:15014/version"
+

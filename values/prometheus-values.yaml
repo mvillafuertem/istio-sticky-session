@@ -1,0 +1,81 @@
+# Prometheus configuration for local testing
+
+# Disable alertmanager (not needed for POC)
+alertmanager:
+  enabled: false
+
+# Disable node-exporter (not needed for POC)
+prometheus-node-exporter:
+  enabled: false
+
+# Disable pushgateway (not needed for POC)
+prometheus-pushgateway:
+  enabled: false
+
+# Disable kube-state-metrics (not needed for POC)
+kube-state-metrics:
+  enabled: false
+
+# Prometheus server configuration
+server:
+  # Persist data for local testing
+  persistentVolume:
+    enabled: false
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+  # Retention period
+  retention: "15d"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    servicePort: 9090
+
+  # Prometheus configuration
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+
+  # Scrape configs for Istio metrics
+  extraScrapeConfigs: |
+    - job_name: 'istiod'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istiod;http-monitoring
+
+    - job_name: 'envoy-stats'
+      metrics_path: /stats/prometheus
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        action: keep
+        regex: '.*-envoy-prom'
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:15090
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod_name
+

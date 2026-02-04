@@ -1,0 +1,130 @@
+# Default values for istio-sticky-session
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 3
+
+image:
+  repository: hashicorp/http-echo
+  pullPolicy: IfNotPresent
+  tag: "0.2.3"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Application configuration
+app:
+  port: 5678
+  text: "-text=Hello from pod: $(hostname) - IP: $(hostname -i)"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5678
+  name: http
+
+# Istio Gateway configuration
+gateway:
+  enabled: true
+  name: sticky-session-gateway
+  hosts:
+    - "*"
+  port: 80
+
+# Istio VirtualService configuration
+virtualService:
+  enabled: true
+  name: sticky-session-vs
+  hosts:
+    - "*"
+
+# Load balancing configuration
+# Options: "none", "consistentHash", "statefulSessions"
+loadBalancing:
+  type: "consistentHash"  # Default to Consistent Hash
+
+  # Consistent Hash configuration
+  consistentHash:
+    enabled: true
+    # Header or cookie to use for hashing
+    httpHeaderName: "x-session-id"
+    # Alternative: use cookie instead
+    # httpCookie:
+    #   name: "istio-session"
+    #   ttl: "3600s"
+    # Ring size (larger = better distribution, more memory)
+    minimumRingSize: 1024
+
+  # Stateful Sessions configuration
+  statefulSessions:
+    enabled: false
+    # Header or cookie to use for session tracking
+    header: "x-session-id"
+    # Alternative: use cookie instead
+    # cookie: "istio-session"
+
+  # Load balancing for new sessions (works with both options)
+  # Options: ROUND_ROBIN, LEAST_REQUEST, RANDOM, PASSTHROUGH
+  simple: ""  # Empty = use default
+
+# Connection pool settings
+connectionPool:
+  enabled: false
+  tcp:
+    maxConnections: 100
+  http:
+    http1MaxPendingRequests: 1024
+    http2MaxRequests: 1000
+
+# Outlier detection (circuit breaker)
+outlierDetection:
+  enabled: false
+  consecutive5xxErrors: 5
+  interval: 5s
+  baseEjectionTime: 30s
+  maxEjectionPercent: 10
+  minHealthPercent: 50
+
+# Pod resource limits
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 250m
+  #   memory: 256Mi
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Container security context
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
